@@ -1,41 +1,60 @@
 import os
+import json
+import tempfile
 import yt_dlp
-from django.shortcuts import render, redirect
-from django.http import FileResponse
-from django import forms
+from django.http import JsonResponse, FileResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.shortcuts import render
 
-os.makedirs("downloads", exist_ok=True)
-
-class URLForm(forms.Form):
-    url = forms.URLField(label='YouTube Link', required=True)
+ffmpeg_path = r"YOUR_PATH_FFMPEG"
+os.environ["PATH"] += os.pathsep + ffmpeg_path
 
 def index(request):
-    if request.method == 'POST':
-        form = URLForm(request.POST)
-        if form.is_valid():
-            url = form.cleaned_data['url']
-            file_path = download_audio(url)
-            if not file_path:
-                return render(request, 'index.html', {'form': form, 'error': "Не вдалося завантажити"})
-            return redirect(f'/download/{os.path.basename(file_path)}')
-    else:
-        form = URLForm()
-    return render(request, 'index.html', {'form': form})
+    return render(request, 'index.html')
 
-def download_audio(url):
+@require_POST
+@csrf_exempt
+def download(request):
     try:
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': 'downloads/%(title)s.%(ext)s',
-            'noplaylist': True
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            return ydl.prepare_filename(info)
-    except Exception as e:
-        print(f"Помилка: {e}")
-        return None
+        data = json.loads(request.body)
+        url = data.get('url')
+        quality = data.get('quality')
 
-def download(request, filename):
-    file_path = os.path.join("downloads", filename)
-    return FileResponse(open(file_path, 'rb'), as_attachment=True)
+        if not url or not quality:
+            return JsonResponse({'error': 'Недостатньо даних'}, status=400)
+
+        file_path = handle_download(url, quality)
+        return FileResponse(open(file_path, 'rb'), as_attachment=True, filename=os.path.basename(file_path))
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+def handle_download(url, quality):
+    quality_map = {
+        'high': '320',
+        'medium': '192',
+        'low': '128'
+    }
+
+    bitrate = quality_map.get(quality, '192')
+
+    temp_dir = tempfile.mkdtemp()
+    output_path = os.path.join(temp_dir, 'track.%(ext)s')
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': output_path,
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': bitrate,
+        }],
+        'quiet': True,
+        'noplaylist': True,
+    }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
+
+    mp3_file = [f for f in os.listdir(temp_dir) if f.endswith('.mp3')][0]
+    return os.path.join(temp_dir, mp3_file)

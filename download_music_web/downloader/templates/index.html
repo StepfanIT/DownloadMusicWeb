@@ -1,5 +1,35 @@
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Download</button>
-</form>
+{% load static %}
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Завантажити музику</title>
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+<body>
+  <header>
+    <h1>🎵 Завантажити музику</h1>
+  </header>
+
+  <main>
+    <form id="download-form" method="post">
+      {% csrf_token %}
+      <input type="url" id="url" name="url" placeholder="Вставте URL" required>
+      <select id="quality" name="quality">
+        <option value="high">Висока (320kbps)</option>
+        <option value="medium">Середня (192kbps)</option>
+        <option value="low">Низька (128kbps)</option>
+      </select>
+      <button type="submit">⬇️ Завантажити</button>
+    </form>
+    <div id="status"></div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 DownloadMusicWeb</p>
+  </footer>
+
+  <script src="{% static 'js/script.js' %}"></script>
+</body>
+</html>
