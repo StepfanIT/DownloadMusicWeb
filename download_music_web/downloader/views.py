@@ -7,7 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.shortcuts import render
 
-ffmpeg_path = r"YOUR_PATH_FFMPEG"
+ffmpeg_path = r"D:\ffmpeg-master-latest-win64-gpl-shared\bin"
 os.environ["PATH"] += os.pathsep + ffmpeg_path
 
 def index(request):
